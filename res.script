@@ -1,0 +1,14 @@
+#!/bin/bash
+#PBS -k o
+#PBS -l nodes=50:ppn=1,walltime=20:00
+#PBS -M zhren@indiana.edu
+#PBS -m abe
+#PBS -N X&R 
+#PBS -j oe
+cd /N/u/zhren/Quarry/pro
+
+./seq > result.txt
+/N/soft/rhel6/openmpi/gnu/1.6.3/bin/mpiexec -n 1 ./para >> result.txt
+/N/soft/rhel6/openmpi/gnu/1.6.3/bin/mpiexec -n 4 ./para >> result.txt
+/N/soft/rhel6/openmpi/gnu/1.6.3/bin/mpiexec -n 8 ./para >> result.txt
+/N/soft/rhel6/openmpi/gnu/1.6.3/bin/mpiexec -n 16 ./para >> result.txt

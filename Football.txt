@@ -1,0 +1,198 @@
+Football betting
+
+1, Abstract
+
+
+
+2, Introduction
+Football betting is an interesting domain that people's choices influences the odds, and the odds determine the behavior of the gamblers. This project create some primitive models to simulate the football betting, so as to monitor the process of interaction. Furthermore, by hand tuning the models, find something interesting underlying features. This requires a large amount of computation, for a reason of that, we rely on the parallel algorithm and super computer.
+
+
+3, Problems
+a) Create models for gamester and gamble maker
+People have different personality, which makes them betting with distinct strategy. And thus, different betting models for the gamesters are necessary. The gamble maker also want more profit by adjusting the odds of the games, which requires another models to simulate.
+
+b) enable a dynamic intereaction environment
+On one side, the gambler will bet differently with alternative odds. On the other side, as an interaction simulation process, the money in the pool should force the gamble maker changes the odds to make profit as well.
+
+c) the amount of computation 
+At the begining, we simulate the whole process on our own computer. But it turns out that the execution is weight too slow. Considering tens of thousands people gamble times by times, it is understandble. And about how to distribute the date is what will be solved in this project.
+
+
+4, Our ideas
+a) how to simulate the behavior of the gamblers
+Different types of gamblers bet with different strategy. When we try to design the models for gambler, we start from asking ourselves what kind of strategy we will use.
+As someone who is conservative, we might always bet the lower odds, which means higher possibility to win. And for those loving soccer, they usually analysis the level of the team, including how many super stars owned by the team and the historical record in the league. And, as a real gambler, the stack with higher odds is prefered, even though higher odds often indicates lower likelihood of occurance. But for some professional gambler, they anticipate the outcome from the trend of odds. For example, the decreasing odds might mean the chance of such category's occurance is increasing.
+
+b) how to simulate the gambler maker
+The tradeoff here is obvious. Odds with too large value may inspire more buyers, while costing the gambler maker more money to pay off the gambling money. Lower odds could make sure the gambling maker gain satisfactory profit, but people may not want to bet with such low pay back.
+
+c) use parallel structure and super computer
+Even though the computation of simulating the behavior of the gambling maker is relative small, the work on simulating the choices of the gamblers is huge. Every gambler needs observe the odds and analysis multiple variables to determine how to bet. As the gamblers are independent, we can partition the original problem set to several nodes, calculate locally, and collect the results, by which updates the new odds.
+
+
+5, The implementation
+
+a), Abstraction of the rules
+We use the British Premier League as our domain. There are 20 teams in this league, which means 10 matches per league round. We also checked their level from official website.
+Odds are numbers indicating the rate of pay back. For instance, the odds for one game could be {win:1.75, tie:2.1, lose:3.12}, and assuming we bet $100 for win before the game starts. After the game, if the host wins, we get $175 back. However, if the host loses or tie, we lost our money. 
+The odds will be updated by the gambling maker, after a fixed amount of gamblers have made their decisions and bet. And this updated odds is going to be provides to the new coming gamblers, along with the history of the odds.
+As for the gamblers, they bet for all 10 games with their money distributed to all of them. It is reasonable to assume they gamble according to different startegies. Some of them only buy the option with lowest odds; some prefer higher odds; some predict the result of the game only by the level of the team; others research the history record of odds and bet.
+
+b), data structure we use
+>>>>>>>>>>>>insert the data type relation graph here>>>>>>>>>>>>>>>
+The purpose of these data structures:
+odds: the odds of host wins, draw or lose.
+stack: the money betting on wins, tie or lose.
+team: name identifing the team, and level of the team.
+game: host and guest, odds for the game.
+gamester: "fund" as gambling money, "bet" representing strategy, "stack" for the money bet on each game.
+
+c), initialize the data
+1), gamesters
+The gambling money for a gamester is a random number. And the strategy for each gambler is also randomly assigned. But the trick here is making sure the partition of the gamblers is not an averager distribution, but always guarantee A% use one specific strategy and B% use other particular one and so on. Changing these factors also changes the process of altering odds.
+
+2), games of this league round
+Picking one team and then another to generate a game, stop until selected 20 teams for 10 games.
+
+3), odds
+To compute the initial odds from the level of the team, first compute the distance for the level of the two teams. Double the distance and check its according value from a table and feed it to the formula.
+
+The table is like:
+static double pp[6][3]={    
+    {30,40,30},
+    {37.5,35,27.5},
+    {42.5,32.5,25},
+    {47.5,30,22.5},
+    {52.5,27.5,20},
+    {57.5,25.5,17.5}
+};
+
+And the formula is:
+inital_odds.win =  90.00 / pp[distance * 2][0]
+inital_odds.tie =  90.00 / pp[distance * 2][1]
+inital_odds.lose =  90.00 / pp[distance * 2][2]
+
+For example:
+For a game, Host team "Manchester United" (level 5) versus guest team "Liverpool" (level 4), their distance is 1. Then we check pp[1*2][], from which we may know 90/47.5, 90/32.5, 90/25 are the odds for "Manchester United" wining, drawing and losing. It is understandble that strong team playing at their own playground is more likely to win, thus the lower odds represents the smaller pay back.
+
+
+d) simulation of the behavior of the gamesters and gambler maker
+With "bet", the member of struct gamester, the main simulation function(will be introduced later) determines which sub_routine will be called to handle the data of gamester and odds.
+These sub_routines describes how gamesters bet:(code provided at appendix)
+bet_1: only bet on the higher odds;
+bet_2: bet with considering the level of teams, if the distance of the level of two teams is smaller than 1, call bet_1, else bet the team with higher level;
+bet_3: only bet on lower odds;
+bet_4: research the history of odds, bet on the odds decreasing most rapidly, if there is no such one, call bet_1;
+
+As the gamebler maker, profit is the only pursuit. As a matter of that, prize money in the pool should be sufficient to pay off the prize. And the more left in the pool at last, the better. But games with too low odds may not attract the buyers.
+Actually, according to the statistical reports on the web, the interest rate between10% and 20% is reasonable. Thus the gambler maker increase the odds when it is too low and decrease the inappropriatly high's.
+
+
+e) About the process of simulation
+After initializing the data, we need the variables to record the prize money in current prize pool, and the history odds, which is an important information for those who only betting for decreasing odds.
+
+Then the simulation process is like this:
+
+    // the odds updates R times (updating the odds frequently is better)
+    for (i = 0; i < R; ++i) {
+        // every time there are new gamblers
+        init_gamester(players, oneround);
+
+        // for N gambler (N could be 1,000 to 100,000)
+        for (j = 0; j<N; ++j) {
+            // every gambler bet
+            bet_iterate(players + j, oneround, odds_history, i, total_stack, total_payoff);
+        }
+
+        // for M games (M is 10 for 10 games)
+        for (j = 0; j<M; ++j) {
+            // the gambler maker updates the odds
+            update_odds(oneround+j, total_stack+j, total_payoff+j, 0.1);
+        }
+        
+        // copy the current odds into history record
+        copy_odds(oneround, odds_history[i]);
+    }
+
+
+e) About breaking the sequential version to parallel version
+The most difficult part of this project is how to complete such huge amount of computing work. 
+
+Look at the code provided few lines above. 
+1), how to partition the computation:
+Breaking the most outter loop into smaller parts is a plausible approach. But the inner loop should be one forth of the value in sequential version, which is N/4. Because, if distributing the computation to 4 nodes with partitioning the outter loop and compute concurrently, there will be 4*N gamesters bet instead of N, before the gambler maker updates the odds.
+Another way is to partition inner loop. Distribute the gamester data and computation to multiple nodes and simulate their choice locally and individually. If 4 nodes is invoked, every nodes will do one forth of the original work.
+
+2), how to synchronize the data.
+Since updating the odds does not require too much computation, one node can perform such operation quickly. To compute the new odds, the only thing should be known is the money bet on each option for every game. Use MPI_Reduce to sum this value at the master node. And MPI_Bcast the updated odds to every other nodes.
+
+3), the code of this core part.
+We tried two methods: openmp and mpi. But only mpi works smoothly.
+
+   // odds are updated R times
+    for (i = 0; i < R; ++i) {
+        init_gamester(players, oneround);
+	
+	// chunk is N/process_number
+	// every node do part of the computation work
+        for (j = myid * chunk; j < (myid + 1)*chunk && j < N; ++j) {
+            bet_iterate(players + j, oneround, odds_history, i, total_stack, total_payoff);
+        }
+
+        MPI_Barrier(MPI_COMM_WORLD);
+        // collect money to the prize pool from all of the nodes
+	// to the mater node
+        for (j = 0; j<numprocs; ++j) {
+            MPI_Reduce(&total_stack+j, &coll_stack+j, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+            MPI_Reduce(&total_payoff+j, &coll_payoff+j, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+
+	// update the odds at the master node
+        if (myid == 0) {
+            for (j = 0; j<M; ++j) {
+                update_odds(oneround+j, total_stack+j, total_payoff+j, 0.1);
+            }
+        }
+        
+	// broadcast the new odds from the master node
+	// to all other nodes
+        for (j = 0; j<M; ++j) {
+            MPI_Bcast(&(oneround+j)->odd.win, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+            MPI_Bcast(&(oneround+j)->odd.tie, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+            MPI_Bcast(&(oneround+j)->odd.lose, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        }
+        
+        MPI_Barrier(MPI_COMM_WORLD);
+        
+	// maintain the history odds
+        copy_odds(oneround, odds_history[i]);
+    }
+
+It is more like selling the lottery at sevral branches and collect the money to the central office, which inform the branches the result in turn.
+
+6, result and analysis
+
+The result is as below:
+sequential, 51.000000
+1 nodes, 52.280588
+4 nodes, 21.111429
+8 nodes, 7.980298
+16 nodes, 13.063388
+
+MPI introduces overheads, even with 1 nodes, which means no communication happens. We can only assume the initialization of the environment for mpi costs some time. And with 4 nodes, the time used is not one forth of the time used by the sequential version. We blame the overhead generated by the communication. And with 8 nodes, the performance improves for more computational resources. However, as to 16 nodes, what is so interesting is that the amount of overheads is a huge detirment to the over-all performance of the processing, although 16 nodes provides the most powerful computation force in our test.
+The underlying reason of the result actually is the model for betting is relativly easy. If the model is more complex, the proportion of local computation will overwhelm the part for communication, which means more nodes may decrease the overall wall time.
+
+As for the result of simulation:
+
+
+7, Future work
+We might manage to use openmp to deal with the inner loop and use mpi to handle the outter loop. So that, the outter loop will be distributed to several nodes. And on every nodes, multiple process can take care of the inner loop.
+
+
+8, Appendix
+
+
+Reference:
+英超网站
